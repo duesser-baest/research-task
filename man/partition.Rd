@@ -4,14 +4,12 @@
 \alias{partition}
 \title{Function that given a dataset, a variable and a value partitions the dataset at specified cut point}
 \usage{
-partition(data, variable, value)
+partition(data, split)
 }
 \arguments{
 \item{data}{data}
 
-\item{variable}{variable}
-
-\item{value}{value}
+\item{split}{list of variable and value}
 }
 \value{
 list of partitions
@@ -20,6 +18,5 @@ list of partitions
 Function that given a dataset, a variable and a value partitions the dataset at specified cut point
 }
 \examples{
-partition(mtcars, 1, 20)
 
 }

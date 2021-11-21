@@ -22,6 +22,7 @@ split_list <- function(data, target){
   for (j in 1:ncol(data)) {
     
     if (is.numeric(data[,j])) {
+      
       # sorted unique values
       suv <- sort(unique(data[,j]))
       
@@ -32,7 +33,7 @@ split_list <- function(data, target){
         sp[i] <- mean(suv[i:(i+1)])
       }
       
-      list <- rlist::list.append(list, sp)  
+      list <- rlist::list.append(list, sp)
       
     } else stop("can only deal with numeric variables for now")
     

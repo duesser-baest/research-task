@@ -15,6 +15,10 @@ implement stoping criteria (1) min_leafe_size, (2) max_tree_depth
 implement pruining dependent on alpha
 implement different loss measures
 implement looking forward
+	find_split function:
+		dont just return best split, but rather sorted list of splits
 
 
+##############
+if spliting list is empty -> return
 

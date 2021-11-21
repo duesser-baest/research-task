@@ -2,22 +2,22 @@
 % Please edit documentation in R/loss_function.R
 \name{loss_function}
 \alias{loss_function}
-\title{Function that given a target variable, a partition and a task type returns a loss value}
+\title{Function that given a target variable, a data and a task type returns a loss value}
 \usage{
-loss_function(partition, target, task_type = "regr")
+loss_function(data, target, task_type = "regr")
 }
 \arguments{
+\item{data}{data}
+
 \item{target}{target variable}
 
 \item{task_type}{task type}
-
-\item{partitionition}{partition}
 }
 \value{
-list of partitionitions
+list of data
 }
 \description{
-Function that given a target variable, a partition and a task type returns a loss value
+Function that given a target variable, a data and a task type returns a loss value
 }
 \examples{
 

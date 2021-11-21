@@ -1,18 +1,20 @@
 #' Function that given a dataset, a variable and a value partitions the dataset at specified cut point
 #'
 #' @param data data
-#' @param variable variable
-#' @param value value
+#' @param split list of variable and value
 #'
 #' @examples
-#' partition(mtcars, 1, 20)
 #'
 #' @return list of partitions
 #'
 #' @export
 #'
 
-partition <- function(data, variable, value){
+partition <- function(data, split){
+  
+  variable <- split[[1]]
+  value <- split[[2]]
+  
   p1 <- data[data[,variable] < value,]
   p2 <- data[data[,variable] >= value,]
   

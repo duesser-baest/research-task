@@ -20,7 +20,7 @@ sl_lists <- function(data, target){
   
   for (j in 1:length(s_l)) {
     for (i in 1:length(s_l[[j]])) {
-      l_l[[j]][i] <- loss_function(target = target, partition = partition(data = data, variable = nam[j], value = s_l[[j]][i]))
+      l_l[[j]][i] <- loss_function(target = target, data = partition(data = data, split = list(nam[j], s_l[[j]][i])))
     }
   }
   
