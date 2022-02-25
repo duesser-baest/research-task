@@ -1,22 +1,46 @@
-##### loss functions for RMSE ####
+##### loss functions ####
+#' Calculates the residual sum of squares
+#'
+#' @param y dependent variable vector
+#'
+#' @return loss value
+#'
+#' @export
 
-loss_RMSE <- function(y){
+loss_RSS <- function(y){
   sum((y - mean(y)) ** 2)
 }
 
 #### loss function given name and value pair ####
+#' Calculates loss of a split given name-value pair
+#'
+#' @param measure performance measure
+#' @param node node
+#' @param name variable name
+#' @param value value
+#'
+#' @return loss value
+#'
+#' @export
 
 loss_nv <- function(measure, node, name, value){
   
   if (measure == "RMSE") {
-    loss <- loss_RMSE(node$y[node$X[name] < value]) +
-      loss_RMSE(node$y[node$X[name] > value])
+    loss <- loss_RSS(node$y[node$X[name] < value]) +
+      loss_RSS(node$y[node$X[name] > value])
   } else {stop("Measure not supported in loss_nv")}
   
   return(loss)
 }
 
 ##### helper function for calc_model_loss #####
+#' Creates df to store loss values
+#'
+#' @param node node
+#'
+#' @return dataframe
+#'
+#' @export
 
 
 loss_helper <- function(node){
@@ -28,8 +52,16 @@ loss_helper <- function(node){
 }
 
 ##### calculates model loss given measure #####
-
-library(dplyr)
+#' Calvulates RMSE loss of model
+#'
+#' @param model model
+#' @param measure measure
+#'
+#' @return loss 
+#' 
+#' @importFrom dplyr bind_rows
+#'
+#' @export
 
 calc_model_loss <- function(model, measure){
   if (measure == "RMSE") {
@@ -42,6 +74,19 @@ calc_model_loss <- function(model, measure){
 }
 
 ##### initializes an empty node ####
+#' Inintializes new node for model
+#'
+#' @param X independent data
+#' @param y dependent variable
+#' @param name name stores heritage
+#' @param generation generation (kept to track max_tree_depth)
+#' @param parent parent
+#' @param parent_split parent split
+#' @param loss loss of node
+#'
+#' @return node
+#'
+#' @export
 
 init_node <- function(X, y, name, generation, parent, parent_split, loss){
   node <- list(
@@ -59,8 +104,17 @@ init_node <- function(X, y, name, generation, parent, parent_split, loss){
 }
 
 ##### split loss data frame #####
-
-library(dplyr)
+#' Creates a data frame storing name split and loss in a node
+#'
+#' @param node node
+#' @param min_leaf_size minimal allowed leaf size
+#' @param measure measure
+#'
+#' @return df with name, value and loss
+#'
+#' @importFrom dplyr arrange
+#'
+#' @export
 
 sl_df <- function(node, min_leaf_size, measure){
   # check if splits are eligable according to min leaf size restriction
@@ -112,6 +166,15 @@ sl_df <- function(node, min_leaf_size, measure){
 }
 
 ##### find children #####
+#' Creates offspring and updates parent
+#'
+#' @param node node
+#' @param split applied split
+#' @param measure measure
+#'
+#' @return list with updated parent and both children
+#'
+#' @export
 
 find_children <- function(node, split, measure){
   
@@ -147,8 +210,8 @@ find_children <- function(node, split, measure){
   
   
   if (measure == "RMSE") {
-    lc_loss <- loss_RMSE(lc_y)
-    rc_loss <- loss_RMSE(rc_y)
+    lc_loss <- loss_RSS(lc_y)
+    rc_loss <- loss_RSS(rc_y)
   }
   
   left_child <- init_node(X = lc_X,
@@ -173,9 +236,15 @@ find_children <- function(node, split, measure){
 }
 
 ##### terminate at maximal tree depth #####
+#' Terminated a node, if maximal tree depth has been reached
+#'
+#' @param node node
+#' @param max_tree_depth maximal tree depth
+#'
+#' @return terminated node that is now a leaf
+#'
+#' @export
 
-# terminate all nodes, that have generation that is at least max_tree_depth
-# declare those nodes as leafs
 terminate_mtd <- function(node, max_tree_depth){
   if (node$generation == max_tree_depth) {
     node$is_terminated <- TRUE
@@ -186,6 +255,13 @@ terminate_mtd <- function(node, max_tree_depth){
 }
 
 ##### terminates a tree now by terminating a node and making it a leaf #####
+#' Terminates a node and makes it a leaf without condition
+#'
+#' @param node node
+#'
+#' @return terminated node
+#'
+#' @export
 
 terminate_now <- function(node){
   if (!node$is_terminated) {
@@ -197,7 +273,14 @@ terminate_now <- function(node){
 }
 
 ##### translates decimal to ids of length look_ahead with range 1:consider #####
-# this is a helper function to create a stroage within get_la_split
+#' Translates decimal to ids of length look_ahead with range ! trough consider
+#'
+#' @param consider considered amount of splits
+#' @param look_ahead amount of future splits to be tried
+#'
+#' @return ids
+#'
+#' @export
 
 id_creator <- function(consider, look_ahead){
   
@@ -226,9 +309,20 @@ id_creator <- function(consider, look_ahead){
 }
 
 ##### build la model and return loss #####
-#given a path obtained from the ic_creator function build_la_model builds a model that uses the n best split at any point and returns the loss of the corresponding model
-
-library(rlist)
+#' Builds a look ahead model given a path obtained by the id_creator, trying the n-best split at any point and returns the loss of the corresponding model
+#'
+#' @param path path of splits to be exected
+#' @param model main model 
+#' @param max_tree_depth maximal tree depth
+#' @param min_leaf_size minimal leaf size
+#' @param measure measure
+#' @param look_ahead depth of looking ahead
+#'
+#' @return model loss
+#' 
+#' @importFrom rlist list.append
+#'
+#' @export
 
 build_la_model <- function(path, 
                            model, 
@@ -303,6 +397,18 @@ build_la_model <- function(path,
 }
 
 ##### get the best la split depending on look ahead and consider parameters #####
+#' Gets the best split from all possible considered la-models
+#'
+#' @param model input model
+#' @param consider considered splits in each level
+#' @param look_ahead depth of looking ahead
+#' @param max_tree_depth maximal tree depth
+#' @param min_leaf_size minimal leaf size
+#' @param measure measure
+#'
+#' @return split number
+#'
+#' @export
 
 get_la_split <- function(model,
                          consider,
@@ -341,8 +447,18 @@ get_la_split <- function(model,
 
 
 ##### create preprocessing list #####
-# this is a helper funciton used in both building the model and predicting the result.
-# it outputs a list that is used in make_X_numeric to know the mapping of factors to numeric values
+#' Helper function used in both building models and predicting on them. The result is passed within the model. The output maps the order of factor input features depending on y to their internally used number
+#'
+#' @param X independent variables
+#' @param y dependent variable vector
+#'
+#' @return preprocessing list
+#' 
+#' @importFrom dplyr arrange
+#' @importFrom stats aggregate
+#'
+#' @export
+
 
 create_pp_list <- function(X, y){
   a_means_list <- function(variable, target){
@@ -351,8 +467,10 @@ create_pp_list <- function(X, y){
     } 
     
     variable <- as.character(variable)
-    means <- aggregate(x = target, by = list(variable), FUN = mean)
-    a_means <- arrange(means, x)
+    means <- stats::aggregate(x = target, by = list(variable), FUN = mean)
+    
+    # variable name "x" is assigned by default, package issue is due to this unsure how to resolve it
+    a_means <- dplyr::arrange(means, x)
     
     return(a_means)
   }
@@ -363,7 +481,14 @@ create_pp_list <- function(X, y){
 }
 
 ##### make X numeric #####
-# this is used to make a variable numeric
+#' Makes all non numeric variables numeric for internal use
+#'
+#' @param X independent variables
+#' @param pp preprocessing list that maps from factor to numeric values
+#'
+#' @return data frame containing only numeric variables
+#'
+#' @export
 
 make_X_numeric <- function(X, pp){
   
@@ -388,8 +513,23 @@ make_X_numeric <- function(X, pp){
 }
 
 ##### main function #####
-
-library(rlist)
+#' Function that calculates the residual sum of squares
+#'
+#' @param data data
+#' @param target target variable, eather numeric or as string
+#' @param task_type task type
+#' @param look_ahead hyperparameter how far to look into future splits
+#' @param consider hyperparameter how many splits to consider in each future split
+#' @param max_tree_depth hyperparameter to choose the maximal depth of the tree
+#' @param min_leaf_size hyperparameter to choose the minimal size of a leaf allowed
+#' @param measure measure
+#' @param prune_parameter hyperparameter that is used for pruning the model
+#'
+#' @return model containing the used time, decission tree, preprocessing list and RMSE loss
+#' 
+#' @importFrom rlist list.append
+#'
+#' @export
 
 la_tree <- function(data, 
                     target, 
@@ -423,7 +563,7 @@ la_tree <- function(data,
     stop("consider value must be between 1 and 9")
   }
   
-  if (consider == 1) { # if only the best split will be considered greedy splitting is applied anyways so look_ahead can be set to 0
+  if (consider == 1) { # if only the best split will be considered greedy splitting is applied anyways so look_ahead can be set to 1
     look_ahead <- 1
   }
   
@@ -464,7 +604,7 @@ la_tree <- function(data,
   X <- make_X_numeric(X, ppl)
   
   if (measure == "RMSE") {
-    loss <- loss_RMSE(y)
+    loss <- loss_RSS(y)
   }
   
   # initialize root node
@@ -545,6 +685,7 @@ la_tree <- function(data,
   time_elapsed <- as.numeric(difftime(end_time, start_time, units = "secs"))
   
   return_list <- list(
+    target = colnames(data)[target],
     loss = loss,
     time_elapsed = time_elapsed,
     preprocessing_list = ppl,
@@ -555,9 +696,15 @@ la_tree <- function(data,
 }
 
 ##### predicts individual observations #####
-# gets as id_vec the vector of names used in the model
-# id_vec <- sapply(model, function(node) node$name)
-# this is needed to travel trought the tree
+#' Predicts individual observatons gets an id vector obtained from the node names in the model. This can be obtained by running (id_vec <- sapply(model, function(node) node$name)). This is needed to travel trough the tree
+#'
+#' @param observation dataframe containing all X values of one observation
+#' @param model model
+#' @param id_vec vector of node id's
+#'
+#' @return estimate of dependen variable
+#'
+#' @export
 
 predict_obs <- function(observation, model, id_vec){
   ## helper get model id'
@@ -595,17 +742,34 @@ predict_obs <- function(observation, model, id_vec){
 }
 
 ##### predicts new observations #####
-# predicts the la_tree based on model created in la_tree aswell as new X data
+#' Predicts the dependent variable based on model obtained from la_tree on new X data
+#'
+#' @param newdata eather whole data or only independent variables
+#' @param model_list model and preprocessing list from la_tree
+#'
+#' @return vector ob predictions
+#'
+#' @export
 
-predict_la_tree <- function(X, model_list){
+predict_la_tree <- function(newdata, model_list){
   
-  if (!is.data.frame(X)) {
-    class <- class(data)
-    stop(paste0("object of class -", class, "- is not supported in predict as X"))
+  if (!is.data.frame(newdata)) {
+    class <- class(newdata)
+    stop(paste0("object of class -", class, "- is not supported in predict as newdata"))
   }
   
-  X <- as.data.frame(X) # make sure data is of type base::data.frame
+  newdata <- as.data.frame(newdata) # make sure data is of type base::data.frame
   
+  target <- model_list$target
+  
+  # check if the data still includes the target variable and throw it out if yes
+  if (target %in% colnames(newdata)) {
+    target <- which(colnames(new_data) == target)
+    
+    X <- newdata[,-target]
+  } else {
+    X <- newdata
+  }
   # unpack output
   model <- model_list$model
   ppl <- model_list$preprocessing_list
@@ -618,6 +782,8 @@ predict_la_tree <- function(X, model_list){
   
   # predicts all observations
   y_hat <- sapply(1:nrow(X), function(i) predict_obs(X[i,], model, id_vec))
+  
+  names(y_hat) <- 1:nrow(X)
   
   return(y_hat)
 }
