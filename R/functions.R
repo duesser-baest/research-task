@@ -45,8 +45,14 @@ loss_nv <- function(measure, node, name, value){
 
 loss_helper <- function(node){
   if(node$leaf){
+    # TODO delete this. for debug only
+    if (length(node$y) == 0) {
+      print(node)
+      stop("a node should never have an empty y-list")
+    }
+    
     df <- data.frame(y_hat = mean(node$y), y = node$y)
-  } else df <- data.frame()
+  } else {df <- data.frame()}
   
   return(df)
 }
@@ -74,7 +80,7 @@ calc_model_loss <- function(model, measure){
 }
 
 ##### initializes an empty node ####
-#' Inintializes new node for model
+#' Initializes new node for model
 #'
 #' @param X independent data
 #' @param y dependent variable
@@ -109,6 +115,7 @@ init_node <- function(X, y, name, generation, parent, parent_split, loss){
 #' @param node node
 #' @param min_leaf_size minimal allowed leaf size
 #' @param measure measure
+#' @param restr_la_var whether or not the dataframe should be restricted to carry only one split per variable
 #'
 #' @return df with name, value and loss
 #'
@@ -116,7 +123,7 @@ init_node <- function(X, y, name, generation, parent, parent_split, loss){
 #'
 #' @export
 
-sl_df <- function(node, min_leaf_size, measure){
+sl_df <- function(node, min_leaf_size, measure, restr_la_var){
   # check if splits are eligable according to min leaf size restriction
   if (nrow(node$X) < (2 * min_leaf_size)) {
     return(data.frame())
@@ -130,10 +137,10 @@ sl_df <- function(node, min_leaf_size, measure){
   ub <- nrow(node$X) - min_leaf_size + 1
   
   # reduce to applicable splits
-  srt <- srt[c(lb:ub),]
+  srt_red <- srt[c(lb:ub),]
   
   # get only unique values
-  suv <- apply(srt, 2, unique)
+  suv <- apply(srt_red, 2, unique)
   
   obtain_splits <- function(vector){ # find all splitting points
     spv <- sapply(seq_along(vector), function(x) mean(vector[c(x, x + 1)]))[-length(vector)]
@@ -151,6 +158,9 @@ sl_df <- function(node, min_leaf_size, measure){
   
   name <- unlist(sapply(1:length(split_list), function(i) rep(names(split_list[i]), times = length(split_list[[i]]))))
   
+  # in case all names that are applicable occur in the same frequency, name will be a matrix. the curious reader can note that finding this error took almost a full day and occurred only after seemingly being ready to benchmark the learner in mlr3 and not, as one would hope when writing this (one of the first) functions. in case anyone but myself ever reads this - i appreciate that you take such an in depth look into my project :)
+  name <- as.vector(name)
+  
   value <- unlist(split_list, use.names = FALSE)
   
   loss <- unlist(lapply(1:length(value), function(i) loss_nv(measure, node, name[i], value[i])))
@@ -161,6 +171,11 @@ sl_df <- function(node, min_leaf_size, measure){
                             RMSE = dplyr::arrange(splits, loss)
                             # if measure maximizes, dplyr::arrange(df, desc(loss))
   )
+  
+  # if only splits should be considered that are from diferent variables, the splits get subset.
+  if (isTRUE(restr_la_var)) {
+    splits_ordered <- splits_ordered[!duplicated(splits_ordered$name),]
+  }
   
   return(splits_ordered)
 }
@@ -184,14 +199,14 @@ find_children <- function(node, split, measure){
     stop("too many observations in split")
   }
   
-  name <- split$name
+  name <- split$name[1]
   
-  sv <- split$value
+  sv <- split$value[1]
   
   # adjust parent
-  node$best_split <- as.list(split[1:2])
+  node$best_split <- as.list(split[1, 1:2])
   
-  # returns original split( altered "terminated") as well as both child splits, if applicabe
+  # returns original split( altered "terminated") as well as both child splits, if applicable
   node$is_terminated <- TRUE
   
   # initialize children
@@ -219,7 +234,7 @@ find_children <- function(node, split, measure){
                           name = lc_name,
                           generation = c_generation,
                           parent = parent,
-                          parent_split = as.list(split[1:2]),
+                          parent_split = as.list(split[1, 1:2]),
                           loss = lc_loss)
   
   right_child <- init_node(X = rc_X,
@@ -227,7 +242,7 @@ find_children <- function(node, split, measure){
                            name = rc_name,
                            generation = c_generation,
                            parent = parent,
-                           parent_split = as.list(split[1:2]),
+                           parent_split = as.list(split[1, 1:2]),
                            loss = rc_loss)
   
   
@@ -317,6 +332,7 @@ id_creator <- function(consider, look_ahead){
 #' @param min_leaf_size minimal leaf size
 #' @param measure measure
 #' @param look_ahead depth of looking ahead
+#' @param restr_la_var whether or not the dataframe should be restricted to carry only one split per variable
 #'
 #' @return model loss
 #' 
@@ -329,14 +345,15 @@ build_la_model <- function(path,
                            max_tree_depth,
                            min_leaf_size, 
                            measure, 
-                           look_ahead){
+                           look_ahead,
+                           restr_la_var){
   
   model_terminated <- FALSE
   
   la_counter <- 1
   
   ####begin while
-  while (isFALSE(model_terminated | !(la_counter <= look_ahead))) {
+  while (isFALSE(model_terminated || !(la_counter <= look_ahead))) {
     #terminate and make leafs to all nodes that have reached max_tree depth
     model <- lapply(model, terminate_mtd, max_tree_depth = max_tree_depth)
     
@@ -355,16 +372,16 @@ build_la_model <- function(path,
     i <- which.min(term_info)
     
     # find best split
-    splits <- sl_df(model[[i]], min_leaf_size, measure)
+    splits <- sl_df(model[[i]], min_leaf_size, measure, restr_la_var)
     
     # check if any splits are applicable
     
-    if (nrow(splits) == 0) { # if no splits are applicable, terminate currend node and make it a leaf
+    if (nrow(splits) == 0) { # if no splits are applicable, terminate current node and make it a leaf
       model[[i]]$is_terminated <- TRUE
       model[[i]]$leaf <- TRUE
     } else { # if splits are applicable continue splitting
       
-      index <- substr(path, la_counter, la_counter)
+      index <- as.integer(substr(path, la_counter, la_counter))
       
       # in case there are not this many possible splits, the model will terminate
       if (index > nrow(splits)) {
@@ -388,7 +405,7 @@ build_la_model <- function(path,
     la_counter <- la_counter + 1
   }
   
-  # make every unterminated node a leaf and terminate it
+  # make every unterminated node a leaf and terminate the whole model
   model <- lapply(model, terminate_now)
   
   loss <- calc_model_loss(model, measure = measure)
@@ -405,6 +422,7 @@ build_la_model <- function(path,
 #' @param max_tree_depth maximal tree depth
 #' @param min_leaf_size minimal leaf size
 #' @param measure measure
+#' @param restr_la_var whether or not the dataframe should be restricted to carry only one split per variable
 #'
 #' @return split number
 #'
@@ -415,7 +433,8 @@ get_la_split <- function(model,
                          look_ahead,
                          max_tree_depth,
                          min_leaf_size,
-                         measure){
+                         measure,
+                         restr_la_var){
   
   df <- data.frame(id = id_creator(consider = consider, 
                                    look_ahead = look_ahead), 
@@ -428,9 +447,10 @@ get_la_split <- function(model,
                     max_tree_depth = max_tree_depth,
                     min_leaf_size = min_leaf_size,
                     measure = measure,
-                    look_ahead = look_ahead)
+                    look_ahead = look_ahead,
+                    restr_la_var = restr_la_var)
   
-  # check if any value was not changed. if a model
+  # check if any value was not changed. 
   if(any(df$loss == -1)) stop("build_la_tree did not work propperly")
   
   min <- which.min(df$loss)
@@ -442,7 +462,6 @@ get_la_split <- function(model,
   if (result > consider) stop("resulting best split out of bounds")
   
   return(result)
-  
 }
 
 
@@ -520,10 +539,13 @@ make_X_numeric <- function(X, pp){
 #' @param task_type task type
 #' @param look_ahead hyperparameter how far to look into future splits
 #' @param consider hyperparameter how many splits to consider in each future split
+#' @param restr_la_var whether or not the dataframe should be restricted to carry only one split per variable
+#' @param cap_la sets the maximum depth of the tree when look_ahead should still be applied
 #' @param max_tree_depth hyperparameter to choose the maximal depth of the tree
 #' @param min_leaf_size hyperparameter to choose the minimal size of a leaf allowed
 #' @param measure measure
 #' @param prune_parameter hyperparameter that is used for pruning the model
+
 #'
 #' @return model containing the used time, decission tree, preprocessing list and RMSE loss
 #' 
@@ -534,10 +556,12 @@ make_X_numeric <- function(X, pp){
 la_tree <- function(data, 
                     target, 
                     task_type = "regr", 
-                    look_ahead, 
+                    look_ahead = 2, 
                     consider = 5, 
-                    max_tree_depth,
-                    min_leaf_size, 
+                    restr_la_var = TRUE,
+                    cap_la = 3, 
+                    max_tree_depth = 6,
+                    min_leaf_size = 5, 
                     measure = "RMSE",
                     prune_parameter = NULL){
   
@@ -559,7 +583,7 @@ la_tree <- function(data,
     stop(paste0("look ahead strategy", consider, " not supported as it is not numeric"))
   } else {as.integer(consider)}
   
-  if (!(consider <= 9 & consider > 0)) {
+  if (!(consider <= 9 && consider > 0)) {
     stop("consider value must be between 1 and 9")
   }
   
@@ -579,6 +603,10 @@ la_tree <- function(data,
   if (!is.data.frame(data)) {
     class <- class(data)
     stop(paste0("object of class -", class, "- is not supported as data input"))
+  }
+  
+  if (!is.logical(restr_la_var)) {
+    stop(paste0(restr_la_var, " must be boolean"))
   }
   
   data <- as.data.frame(data) # make sure data is of type base::data.frame
@@ -642,23 +670,29 @@ la_tree <- function(data,
     # find first non-terminated node
     i <- which.min(term_info)
     
-    splits <- sl_df(model[[i]], min_leaf_size, measure)
+    splits <- sl_df(model[[i]], min_leaf_size, measure, restr_la_var)
     
     # check if any splits are applicable
-    if (nrow(splits) == 0) { # if no splits are applicable, terminate currend node and make it a leaf
+    if (nrow(splits) == 0) { # if no splits are applicable, terminate current node and make it a leaf
       model[[i]]$is_terminated <- TRUE
       model[[i]]$leaf <- TRUE
     } else { # if splits are applicable continue splitting
       
-      if (look_ahead == 1) { # if no look_ahead is used, greedy splitting is applied
+      # if no look_ahead is used (look_ahead == 1), greedy splitting is applied
+      # if cap_la is reached, no look ahead splits are preformed after this point and only greedy splits are aplied from this depth on
+      if (look_ahead == 1 || model[[i]]$generation > cap_la) { 
         index <- 1 
       } else {
-        index <- get_la_split(model = model,
+        # in order to propperly look ahead a strict subtree from the current node on must be considered. previous implementations had the error of having model = model in get_la_split which is nonsensical as for deeper trees there might no longer be a dependency between the initial and la splits
+        la_model <- vector("list")
+        la_model <- rlist::list.append(la_model, model[[i]])
+        index <- get_la_split(model = la_model,
                               consider = consider,
                               look_ahead = look_ahead,
                               max_tree_depth = max_tree_depth,
                               min_leaf_size = min_leaf_size,
-                              measure = measure)
+                              measure = measure,
+                              restr_la_var = restr_la_var)
       }
       
       # find split corresponding to chosen index
@@ -764,7 +798,7 @@ predict_la_tree <- function(newdata, model_list){
   
   # check if the data still includes the target variable and throw it out if yes
   if (target %in% colnames(newdata)) {
-    target <- which(colnames(new_data) == target)
+    target <- which(colnames(newdata) == target)
     
     X <- newdata[,-target]
   } else {
@@ -783,6 +817,7 @@ predict_la_tree <- function(newdata, model_list){
   # predicts all observations
   y_hat <- sapply(1:nrow(X), function(i) predict_obs(X[i,], model, id_vec))
   
+  # this is necessary for mlr3 to be able to interpret the prediction vector.
   names(y_hat) <- 1:nrow(X)
   
   return(y_hat)

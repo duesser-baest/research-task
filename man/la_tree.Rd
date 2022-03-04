@@ -8,10 +8,12 @@ la_tree(
   data,
   target,
   task_type = "regr",
-  look_ahead,
+  look_ahead = 2,
   consider = 5,
-  max_tree_depth,
-  min_leaf_size,
+  restr_la_var = TRUE,
+  cap_la = 3,
+  max_tree_depth = 6,
+  min_leaf_size = 5,
   measure = "RMSE",
   prune_parameter = NULL
 )
@@ -26,6 +28,10 @@ la_tree(
 \item{look_ahead}{hyperparameter how far to look into future splits}
 
 \item{consider}{hyperparameter how many splits to consider in each future split}
+
+\item{restr_la_var}{whether or not the dataframe should be restricted to carry only one split per variable}
+
+\item{cap_la}{sets the maximum depth of the tree when look_ahead should still be applied}
 
 \item{max_tree_depth}{hyperparameter to choose the maximal depth of the tree}
 

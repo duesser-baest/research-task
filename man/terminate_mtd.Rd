@@ -9,7 +9,7 @@ terminate_mtd(node, max_tree_depth)
 \arguments{
 \item{node}{node}
 
-\item{man_tree_depth}{maximal tree depth}
+\item{max_tree_depth}{maximal tree depth}
 }
 \value{
 terminated node that is now a leaf

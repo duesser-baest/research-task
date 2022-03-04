@@ -2,7 +2,7 @@
 % Please edit documentation in R/functions.R
 \name{init_node}
 \alias{init_node}
-\title{Inintializes new node for model}
+\title{Initializes new node for model}
 \usage{
 init_node(X, y, name, generation, parent, parent_split, loss)
 }
@@ -25,5 +25,5 @@ init_node(X, y, name, generation, parent, parent_split, loss)
 node
 }
 \description{
-Inintializes new node for model
+Initializes new node for model
 }

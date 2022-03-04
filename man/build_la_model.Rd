@@ -4,7 +4,15 @@
 \alias{build_la_model}
 \title{Builds a look ahead model given a path obtained by the id_creator, trying the n-best split at any point and returns the loss of the corresponding model}
 \usage{
-build_la_model(path, model, max_tree_depth, min_leaf_size, measure, look_ahead)
+build_la_model(
+  path,
+  model,
+  max_tree_depth,
+  min_leaf_size,
+  measure,
+  look_ahead,
+  restr_la_var
+)
 }
 \arguments{
 \item{path}{path of splits to be exected}
@@ -18,6 +26,8 @@ build_la_model(path, model, max_tree_depth, min_leaf_size, measure, look_ahead)
 \item{measure}{measure}
 
 \item{look_ahead}{depth of looking ahead}
+
+\item{restr_la_var}{whether or not the dataframe should be restricted to carry only one split per variable}
 }
 \value{
 model loss

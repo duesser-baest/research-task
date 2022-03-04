@@ -4,10 +4,10 @@
 \alias{predict_la_tree}
 \title{Predicts the dependent variable based on model obtained from la_tree on new X data}
 \usage{
-predict_la_tree(X, model_list)
+predict_la_tree(newdata, model_list)
 }
 \arguments{
-\item{X}{independent variables}
+\item{newdata}{eather whole data or only independent variables}
 
 \item{model_list}{model and preprocessing list from la_tree}
 }

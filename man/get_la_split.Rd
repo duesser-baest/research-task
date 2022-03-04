@@ -10,7 +10,8 @@ get_la_split(
   look_ahead,
   max_tree_depth,
   min_leaf_size,
-  measure
+  measure,
+  restr_la_var
 )
 }
 \arguments{
@@ -25,6 +26,8 @@ get_la_split(
 \item{min_leaf_size}{minimal leaf size}
 
 \item{measure}{measure}
+
+\item{restr_la_var}{whether or not the dataframe should be restricted to carry only one split per variable}
 }
 \value{
 split number

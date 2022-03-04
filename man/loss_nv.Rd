@@ -12,6 +12,8 @@ loss_nv(measure, node, name, value)
 \item{node}{node}
 
 \item{name}{variable name}
+
+\item{value}{value}
 }
 \value{
 loss value
